@@ -62,6 +62,7 @@ function App() {
   useEffect(() => {
     if (!playingTrackUrl) return;
     const audio = new Audio(playingTrackUrl);
+    audio.volume = 0.3;
     audio.play();
 
     return () => audio.pause();
