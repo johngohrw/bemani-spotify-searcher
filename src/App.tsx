@@ -105,7 +105,15 @@ function App() {
 
   return (
     <div className={styles.layoutContainer}>
-      <div className={styles.header}>IIDX spotify song searcher</div>
+      <div className={styles.header}>
+        <div className={styles.brand}>IIDX spotify song searcher</div>
+        <a
+          style={{}}
+          href="https://github.com/johngohrw/bemani-spotify-searcher/"
+        >
+          github
+        </a>
+      </div>
       <div className={styles.splitter}>
         <div className={styles.songList} style={{ width: "320px" }}>
           {allSongsFlatWithGameSeries.map((song) => (

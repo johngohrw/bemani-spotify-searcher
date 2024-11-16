@@ -20,14 +20,17 @@ body,
   .header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     padding: 6px;
     height: 30px;
     background-color: rgb(150, 200, 171);
     flex-shrink: 0;
 
-    font-family: Verdana, Geneva, Tahoma, sans-serif;
-    font-weight: 600;
-    color: #2d2d2d;
+    .brand {
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+      font-weight: 600;
+      color: #2d2d2d;
+    }
   }
 
   .splitter {
