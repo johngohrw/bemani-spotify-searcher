@@ -43,7 +43,7 @@ export const request = async (
   url: string,
   config: { method: Method } & AxiosRequestConfig,
   options: { retryCount?: number } = { retryCount: 0 }
-) => {
+): Promise<any> => {
   const { retryCount } = options ?? {};
 
   let accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
