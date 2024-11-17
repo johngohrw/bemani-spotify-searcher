@@ -1,10 +1,11 @@
-import { ComponentProps, useEffect, useState } from "react";
+import { ComponentProps, useEffect, useRef, useState } from "react";
 import { allSongs } from "./assets/songs";
 import { request } from "./utils/request";
 
 import clsx from "clsx";
 import styles from "./App.module.scss";
 import stringSimilarity from "string-similarity-js";
+import { flushSync } from "react-dom";
 
 const allSongsFlatWithGameSeries = Object.entries(allSongs)
   .map(([key, songs]) => {
@@ -22,6 +23,7 @@ type TrackResult = {
   name: string;
   artists: {
     name: string;
+    uri: string;
   }[];
   album: {
     name: string;
@@ -53,61 +55,157 @@ const getQueryString = (song: SongType) => {
   return `${song.song} ${song.artist}`;
 };
 
+const getOnlySongQueryString = (song: SongType) => {
+  return `${song.song}`;
+};
+
+const getOnlyArtistQueryString = (song: SongType) => {
+  return `${song.artist}`;
+};
+
 function App() {
   const [selectedSong, setSelectedSong] = useState<SongType>();
   const [results, setResults] = useState<Results>({});
-  const [playingTrackUrl, setPlayingTrackUrl] = useState<string>();
+  const [artistResults, setArtistResults] = useState<Results>({});
+  const [trackResults, setTrackResults] = useState<Results>({});
   const [selectedResult, setSelectedResult] = useState<TrackResult>();
 
-  useEffect(() => {
-    if (!playingTrackUrl) return;
-    const audio = new Audio(playingTrackUrl);
-    audio.volume = 0.3;
-    audio.play();
+  const [rerender, setRerender] = useState(0);
 
-    return () => audio.pause();
-  }, [playingTrackUrl]);
+  const audioRef = useRef(new Audio());
+
+  useEffect(() => {
+    audioRef.current.volume = 0.3;
+  }, []);
 
   useEffect(() => {
     const fetch = async () => {
       const _song = selectedSong as SongType;
       setResults((prev) => ({ ...prev, [_song.id]: { loading: true } }));
-      const results = await fetchSong(getQueryString(_song));
-      const songs = (results.data.tracks.items ?? []) as TrackResult[];
-      const withSimilarity = songs.map((song) => ({
-        ...song,
-        trackNameSimilarity: stringSimilarity(song.name, _song.song),
-        artistSimilarity: stringSimilarity(song.artists[0].name, _song.artist),
-      }));
-      setResults((prev) => ({
-        ...prev,
-        [_song.id]: { loading: false, results: withSimilarity },
-      }));
+      setArtistResults((prev) => ({ ...prev, [_song.id]: { loading: true } }));
+      setTrackResults((prev) => ({ ...prev, [_song.id]: { loading: true } }));
+
+      const _searchTracks = async (queryString: string) => {
+        const results = await fetchSong(queryString);
+        const songs = (results.data.tracks.items ?? []) as TrackResult[];
+        const withSimilarity = songs.map((song) => ({
+          ...song,
+          trackNameSimilarity: stringSimilarity(song.name, _song.song),
+          artistSimilarity: stringSimilarity(
+            song.artists[0].name,
+            _song.artist
+          ),
+        }));
+        return withSimilarity;
+      };
+
+      _searchTracks(getQueryString(_song)).then((results) => {
+        setResults((prev) => ({
+          ...prev,
+          [_song.id]: { loading: false, results },
+        }));
+      });
+
+      _searchTracks(getOnlySongQueryString(_song)).then((results) => {
+        setTrackResults((prev) => ({
+          ...prev,
+          [_song.id]: { loading: false, results },
+        }));
+      });
+
+      _searchTracks(getOnlyArtistQueryString(_song)).then((results) => {
+        setArtistResults((prev) => ({
+          ...prev,
+          [_song.id]: { loading: false, results },
+        }));
+      });
     };
 
     if (selectedSong && !(selectedSong.id in results)) fetch();
   }, [selectedSong]);
 
-  const selectedSongResultsIsLoading =
-    selectedSong?.id &&
-    selectedSong.id in results &&
-    results[selectedSong.id].loading;
+  const handlePlayPause = (url: string) => {
+    if (audioRef.current.src === url) {
+      if (audioRef.current.paused) {
+        audioRef.current.play();
+      } else {
+        audioRef.current.pause();
+      }
+    } else {
+      audioRef.current.src = url;
+      audioRef.current.play();
+    }
+    setRerender((prev) => prev + 1);
+  };
 
-  const searchResults =
-    (selectedSong?.id &&
+  const ResultList = ({
+    queryString,
+    results,
+  }: {
+    results: Results;
+    queryString: string;
+  }) => {
+    const selectedSongResultsIsLoading =
+      selectedSong?.id &&
       selectedSong.id in results &&
-      results[selectedSong.id]?.results) ||
-    [];
+      results[selectedSong.id].loading;
 
-  const handlePlayPause = (result: TrackResult) => {
-    const isAlreadyPlaying = playingTrackUrl === result.preview_url;
-    setPlayingTrackUrl(isAlreadyPlaying ? undefined : result.preview_url);
+    const searchResults =
+      (selectedSong?.id &&
+        selectedSong.id in results &&
+        results[selectedSong.id]?.results) ||
+      [];
+    return (
+      <div style={{ width: "320px" }}>
+        {selectedSong && (
+          <div style={{ paddingBottom: "6px" }}>
+            <div style={{ fontSize: "11px", fontFamily: "sans-serif" }}>
+              searching for:{" "}
+            </div>
+            <div
+              style={{
+                fontFamily: "monospace",
+                padding: "3px",
+                background: "#f2f2f2",
+                borderRadius: "4px",
+              }}
+            >
+              {queryString}
+            </div>
+          </div>
+        )}
+        <div>{!!selectedSongResultsIsLoading && "loading..."}</div>
+        <div>
+          {!selectedSongResultsIsLoading &&
+            searchResults.length <= 0 &&
+            "no results"}
+        </div>
+        <div style={{ display: "flex", flexFlow: "column nowrap", gap: "2px" }}>
+          {searchResults.map((result) => (
+            <SearchResult
+              result={result}
+              isPlaying={
+                audioRef.current.src === result.preview_url &&
+                !audioRef.current.paused
+              }
+              onResultClick={(result) => {
+                setSelectedResult(result);
+
+                if (!result) return;
+                handlePlayPause(result.preview_url);
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
     <div className={styles.layoutContainer}>
       <div className={styles.header}>
         <div className={styles.brand}>IIDX spotify song searcher</div>
+
         <a
           style={{}}
           href="https://github.com/johngohrw/bemani-spotify-searcher/"
@@ -124,50 +222,41 @@ function App() {
               series={song.series}
               key={song.id}
               active={selectedSong?.id === song.id}
-              onClick={() => setSelectedSong(song)}
+              onClick={() => {
+                setSelectedSong(song);
+              }}
             />
           ))}
         </div>
         <div className={styles.panel}>
-          <div style={{ width: "320px" }}>
-            {selectedSong && (
-              <div style={{ paddingBottom: "6px" }}>
-                <div style={{ fontSize: "11px", fontFamily: "sans-serif" }}>
-                  searching for:{" "}
-                </div>
-                <div
-                  style={{
-                    fontFamily: "monospace",
-                    padding: "3px",
-                    background: "#f2f2f2",
-                    borderRadius: "4px",
-                  }}
-                >
-                  {getQueryString(selectedSong)}
-                </div>
-              </div>
-            )}
-            <div>{!!selectedSongResultsIsLoading && "loading..."}</div>
-            <div>
-              {!selectedSongResultsIsLoading &&
-                searchResults.length <= 0 &&
-                "no results"}
-            </div>
-            <div
-              style={{ display: "flex", flexFlow: "column nowrap", gap: "2px" }}
-            >
-              {searchResults.map((result) => (
-                <SearchResult
-                  result={result}
-                  isPlaying={playingTrackUrl === result.preview_url}
-                  onResultClick={(result) => {
-                    handlePlayPause(result);
-                    setSelectedResult(result);
-                  }}
-                />
-              ))}
-            </div>
+          <div>
+            <div className={styles.sectionTitle}>Track title + Artist</div>
+            <ResultList
+              results={results}
+              queryString={selectedSong ? getQueryString(selectedSong) : ""}
+            />
           </div>
+
+          <div>
+            <div className={styles.sectionTitle}>Track title</div>
+
+            <ResultList
+              results={trackResults}
+              queryString={
+                selectedSong ? getOnlySongQueryString(selectedSong) : ""
+              }
+            />
+          </div>
+          <div>
+            <div className={styles.sectionTitle}>Artist</div>
+            <ResultList
+              results={artistResults}
+              queryString={
+                selectedSong ? getOnlyArtistQueryString(selectedSong) : ""
+              }
+            />
+          </div>
+
           {selectedResult && (
             <div
               style={{
@@ -182,7 +271,9 @@ function App() {
                 src={selectedResult?.album.images[0].url}
               ></img>
               <div>{selectedResult?.name}</div>
-              <div>{selectedResult?.artists[0].name}</div>
+              <a href={selectedResult?.artists[0].uri}>
+                {selectedResult?.artists[0].name}
+              </a>
 
               <div>{selectedResult?.album.name}</div>
               <a href={selectedResult.uri}>URI</a>
@@ -190,6 +281,39 @@ function App() {
           )}
         </div>
       </div>
+      {/* <div className={styles.footer}>
+        <div
+          style={{
+            display: "flex",
+            flexFlow: "row nowrap",
+            alignItems: "center",
+          }}
+        >
+          <img
+            style={{
+              width: "48px",
+              height: "48px",
+              background: "#98aea2",
+              marginRight: "0.5rem",
+            }}
+            src={selectedResult?.album.images[0].url ?? ""}
+          ></img>
+          <div>
+            <div style={{ fontSize: "13px", marginBottom: "4px" }}>
+              <a href={selectedResult?.uri}>{selectedResult?.name}</a>
+            </div>
+            <div style={{ fontSize: "13px" }}>
+              <a href={selectedResult?.artists[0].uri}>
+                {selectedResult?.artists[0].name}
+              </a>
+            </div>
+          </div>
+        </div>
+        <div>
+          <button>play</button>
+        </div>
+        <div>hi</div>
+      </div> */}
     </div>
   );
 }

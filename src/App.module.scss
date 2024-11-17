@@ -58,7 +58,23 @@ body,
       flex-flow: row nowrap;
       gap: 1rem;
       padding: 6px;
+
+      .sectionTitle {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d2d2d;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+        margin-bottom: 0.5rem;
+      }
     }
+  }
+
+  .footer {
+    background: rgb(190, 202, 195);
+    padding: 6px;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: space-between;
   }
 }
 
