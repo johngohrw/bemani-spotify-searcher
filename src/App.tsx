@@ -3,9 +3,8 @@ import { allSongs } from "./assets/songs";
 import { request } from "./utils/request";
 
 import clsx from "clsx";
-import styles from "./App.module.scss";
 import stringSimilarity from "string-similarity-js";
-import { flushSync } from "react-dom";
+import styles from "./App.module.scss";
 
 const allSongsFlatWithGameSeries = Object.entries(allSongs)
   .map(([key, songs]) => {
@@ -70,7 +69,7 @@ function App() {
   const [trackResults, setTrackResults] = useState<Results>({});
   const [selectedResult, setSelectedResult] = useState<TrackResult>();
 
-  const [rerender, setRerender] = useState(0);
+  const [, setRerender] = useState(0);
 
   const audioRef = useRef(new Audio());
 
