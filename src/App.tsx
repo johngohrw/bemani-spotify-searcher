@@ -204,13 +204,14 @@ function App() {
     <div className={styles.layoutContainer}>
       <div className={styles.header}>
         <div className={styles.brand}>IIDX spotify song searcher</div>
-
-        <a
-          style={{}}
-          href="https://github.com/johngohrw/bemani-spotify-searcher/"
-        >
-          github
-        </a>
+        <div style={{ display: "flex", flexFlow: "row nowrap", gap: "12px" }}>
+          <a href="https://open.spotify.com/playlist/2eiaPdh3sFELbCehBqbxY9?si=3bf682d727f34921">
+            playlist
+          </a>
+          <a href="https://github.com/johngohrw/bemani-spotify-searcher/">
+            github
+          </a>
+        </div>
       </div>
       <div className={styles.splitter}>
         <div className={styles.songList} style={{ width: "320px" }}>
