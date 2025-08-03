@@ -39,21 +39,24 @@ export const getAccessToken = async () => {
   return success;
 };
 
-export const request = async (
+export const request = async <T = any>(
   url: string,
   config: { method: Method } & AxiosRequestConfig,
   options: { retryCount?: number } = { retryCount: 0 }
-): Promise<any> => {
+): Promise<T | undefined> => {
   const { retryCount } = options ?? {};
 
-  let accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+  const accessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
 
   if (!accessToken) {
     const success = await getAccessToken();
     if (!success) {
       const retries = retryCount ?? 1;
       if (retries >= MAX_RETRY_COUNT) return;
-      return request(url, config, { ...options, retryCount: retries + 1 });
+      return await request(url, config, {
+        ...options,
+        retryCount: retries + 1,
+      });
     }
     return request(url, config, { ...options, retryCount: 0 });
   }

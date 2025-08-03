@@ -5762,3 +5762,10 @@ export const allSongs = {
 };
 
 export const allSongsFlat = Object.values(allSongs).flat();
+
+export const allSongsFlatWithGameSeries = Object.entries(allSongs)
+  .map(([key, songs]) => {
+    return songs.map((song) => ({ ...song, series: key }));
+  })
+  .flat()
+  .map((song, i) => ({ ...song, id: i }));
