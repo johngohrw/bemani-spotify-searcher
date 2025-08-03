@@ -1,4 +1,4 @@
-# Bemani Spotify Searcher
+# bemani spotify searcher
 
 easily search spotify using bemani song titles
 
